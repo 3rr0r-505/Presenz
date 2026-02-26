@@ -57,16 +57,13 @@ jobs:
           pip install pyinstaller
 
       - name: Build Executable
-        run: |
-          pyinstaller --onefile main.py --name ${{ env.APP_NAME }}
+        run: pyinstaller --onefile main.py --name ${{ env.APP_NAME }}
 
-      # Rename for Linux/macOS
       - name: Rename Binary (Linux/macOS)
         if: runner.os != 'Windows'
         run: |
           mv dist/${{ env.APP_NAME }} dist/${{ env.APP_NAME }}-${{ runner.os }}
 
-      # Rename for Windows
       - name: Rename Binary (Windows)
         if: runner.os == 'Windows'
         shell: cmd
@@ -111,16 +108,19 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Download All Artifacts
         uses: actions/download-artifact@v4
         with:
           path: release-artifacts
 
+      # Proper source archive (no tar failure)
       - name: Create Source Archives
         run: |
-          zip -r ${{ env.APP_NAME }}-source.zip .
-          tar -czf ${{ env.APP_NAME }}-source.tar.gz .
+          git archive --format=zip -o ${{ env.APP_NAME }}-source.zip HEAD
+          git archive --format=tar.gz -o ${{ env.APP_NAME }}-source.tar.gz HEAD
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
