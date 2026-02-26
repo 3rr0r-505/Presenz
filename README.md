@@ -1,4 +1,4 @@
-# Presenzc - FastAPI-Powered Attendance System
+# Presenzc - FastAPI Powered Attendance System
 
 ![Python](https://img.shields.io/badge/Python-3.10+-417fb1?logo=python&logoColor=417fb1)
 ![FastAPI](https://img.shields.io/badge/FastAPI-Framework-019486?logo=fastapi&logoColor=019486)
