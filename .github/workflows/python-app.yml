@@ -1,172 +1,128 @@
-name: Presenz Production CI/CD
+name: Presenz CI/CD
 
 on:
   push:
-    branches: [ "main" ]
-    tags: [ "v*" ]
-  pull_request:
-    branches: [ "main" ]
+    branches:
+      - main
+    tags:
+      - "v*"
 
 permissions:
   contents: write
-  packages: write
-  security-events: write
 
 env:
-  IMAGE_NAME: presenz-app
-  REGISTRY: ghcr.io/${{ github.repository_owner }}
-  PYTHON_VERSION: "3.10"
+  APP_NAME: presenz
 
-# --------------------------------------------------
-# 1️⃣ LINT + TEST
-# --------------------------------------------------
+# ===============================
+# 1️⃣ SECURITY SCAN (Every Commit)
+# ===============================
 jobs:
-  test:
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v4
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
-      - run: |
-          python -m pip install --upgrade pip
-          pip install flake8 pytest
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-
-      - run: flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-      - run: pytest
-
-# --------------------------------------------------
-# 2️⃣ DOCKER BUILD (no push yet)
-# --------------------------------------------------
-  docker-build:
-    needs: test
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - run: |
-          docker build -t $REGISTRY/$IMAGE_NAME:ci .
-
-# --------------------------------------------------
-# 3️⃣ TRIVY SECURITY SCAN
-# --------------------------------------------------
   security-scan:
-    needs: docker-build
+    if: github.ref_type != 'tag'
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
 
-      # Scan filesystem (source + deps)
-      - name: Trivy FS Scan
-        uses: aquasecurity/trivy-action@v0.24.0
+      - name: Run Trivy Security Scan
+        uses: aquasecurity/trivy-action@master
         with:
           scan-type: fs
-          format: table
-          severity: CRITICAL,HIGH
+          severity: HIGH,CRITICAL
           exit-code: 1
 
-      # Scan Docker image
-      - name: Build Image for Scan
-        run: docker build -t presenz-scan .
-
-      - name: Trivy Image Scan
-        uses: aquasecurity/trivy-action@v0.24.0
-        with:
-          image-ref: presenz-scan
-          format: table
-          severity: CRITICAL,HIGH
-          exit-code: 1
-
-# --------------------------------------------------
-# 4️⃣ PUSH DOCKER (ONLY ON TAG)
-# --------------------------------------------------
-  docker-release:
-    needs: security-scan
-    if: github.ref_type == 'tag'
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract version
-        id: vars
-        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-
-      - run: |
-          docker build -t $REGISTRY/$IMAGE_NAME:latest .
-          docker tag $REGISTRY/$IMAGE_NAME:latest $REGISTRY/$IMAGE_NAME:${{ steps.vars.outputs.VERSION }}
-          docker push $REGISTRY/$IMAGE_NAME:latest
-          docker push $REGISTRY/$IMAGE_NAME:${{ steps.vars.outputs.VERSION }}
-
-# --------------------------------------------------
-# 5️⃣ BUILD BINARIES (MULTI-OS)
-# --------------------------------------------------
+# ===============================
+# 2️⃣ BUILD EXECUTABLES (On Tag)
+# ===============================
   build-binaries:
-    needs: security-scan
-    if: github.ref_type == 'tag'
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ${{ matrix.os }}
+
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
 
-    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install Dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build Executable
+        run: |
+          pyinstaller --onefile main.py --name ${{ env.APP_NAME }}
+
+      - name: Rename Binary (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: |
+          mv dist/${{ env.APP_NAME }} dist/${{ env.APP_NAME }}-${{ runner.os }}
+
+      - name: Rename Binary (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          rename dist\\${{ env.APP_NAME }}.exe ${{ env.APP_NAME }}-windows.exe
+
+      - name: Upload Binary Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: binary-${{ runner.os }}
+          path: dist/*
+
+# ===============================
+# 3️⃣ BUILD DOCKER IMAGE (On Tag)
+# ===============================
+  docker-build:
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    needs: build-binaries
 
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v4
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
-      - run: |
-          python -m pip install --upgrade pip
-          pip install pyinstaller
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-
-      - run: pyinstaller --onefile main.py
-
-      - name: Rename binary
-        shell: bash
+      - name: Build Docker Image
         run: |
-          mkdir release
-          if [ "$RUNNER_OS" = "Windows" ]; then
-            mv dist/main.exe release/presenz-windows.exe
-          elif [ "$RUNNER_OS" = "macOS" ]; then
-            mv dist/main release/presenz-macos
-          else
-            mv dist/main release/presenz-linux
-          fi
+          docker build -t ${{ env.APP_NAME }}:${{ github.ref_name }} .
+          docker save ${{ env.APP_NAME }}:${{ github.ref_name }} -o ${{ env.APP_NAME }}-docker.tar
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload Docker Image Artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: presenz-${{ matrix.os }}
-          path: release/*
+          name: docker-image
+          path: ${{ env.APP_NAME }}-docker.tar
 
-# --------------------------------------------------
-# 6️⃣ CREATE GITHUB RELEASE
-# --------------------------------------------------
-  release:
-    needs: [docker-release, build-binaries]
-    if: github.ref_type == 'tag'
+# ===============================
+# 4️⃣ CREATE RELEASE + UPLOAD ALL
+# ===============================
+  publish-release:
+    if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
+    needs: [build-binaries, docker-build]
 
     steps:
-      - uses: actions/download-artifact@v4
-        with:
-          path: artifacts
+      - uses: actions/checkout@v4
 
-      - uses: softprops/action-gh-release@v2
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
         with:
-          files: artifacts/**/*
-          generate_release_notes: true
+          path: release-artifacts
+
+      - name: Create Source Archives
+        run: |
+          zip -r ${{ env.APP_NAME }}-source.zip .
+          tar -czf ${{ env.APP_NAME }}-source.tar.gz .
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release-artifacts/**/*
+            ${{ env.APP_NAME }}-source.zip
+            ${{ env.APP_NAME }}-source.tar.gz
