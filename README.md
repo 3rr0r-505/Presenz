@@ -10,7 +10,7 @@
 ![Interface](https://img.shields.io/badge/UI-Terminal-darkgreen?logo=gnubash)
 ![License](https://img.shields.io/badge/License-Apache%202.0-73e4bf?logo=opensourceinitiative&logoColor=73e4bf)
 
-Lightweight, terminal-driven attendance system with public session access via Cloudflare Tunnel and QR-based student entry.
+A lightweight, terminal-driven attendance system with secure public session access via Cloudflare Tunnel and QR-based student entry.
 
 ## 🔐 Key Features
 
@@ -91,8 +91,7 @@ sqlite3 -json "<path-to-db-file>" 'SELECT * FROM "<table-name>";' > backup/"tabl
 ```
 
 ## ⚙️ Default Server
-
-Uvicorn ASGI server is running on `http://0.0.0.0:8080`
+The application runs on Uvicorn ASGI at `http://0.0.0.0:8080`
 
 ---
 
