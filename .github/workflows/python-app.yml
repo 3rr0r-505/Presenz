@@ -60,10 +60,10 @@ jobs:
         run: |
           pyinstaller --onefile main.py --name ${{ env.APP_NAME }}
 
-      - name: Rename Binary (Linux/macOS)
-        if: runner.os != 'Windows'
-        run: |
-          mv dist/${{ env.APP_NAME }} dist/${{ env.APP_NAME }}-${{ runner.os }}
+      - name: Rename Binary (Windows)
+        if: runner.os == 'Windows'
+        run: rename dist\${{ env.APP_NAME }}.exe ${{ env.APP_NAME }}-windows.exe
+        shell: cmd
 
       - name: Rename Binary (Windows)
         if: runner.os == 'Windows'
