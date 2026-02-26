@@ -1,0 +1,27 @@
+{
+    "server": {
+        "host": "0.0.0.0",
+        "port": 8080
+    },
+
+    "database": {
+        "base_path": "./db/",
+        "wal_mode": true,
+        "timeout_seconds": 5
+    },
+
+    "session": {
+        "session_id_length": 16,
+        "session_code_length": 8
+    },
+
+    "security": {
+        "max_name_length": 100,
+        "max_roll_length": 50
+    },
+
+    "export": {
+        "backup_path": "./backup/",
+        "format": "json"
+    }
+    }
