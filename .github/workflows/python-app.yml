@@ -1,0 +1,172 @@
+name: Presenz Production CI/CD
+
+on:
+  push:
+    branches: [ "main" ]
+    tags: [ "v*" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: write
+  packages: write
+  security-events: write
+
+env:
+  IMAGE_NAME: presenz-app
+  REGISTRY: ghcr.io/${{ github.repository_owner }}
+  PYTHON_VERSION: "3.10"
+
+# --------------------------------------------------
+# 1️⃣ LINT + TEST
+# --------------------------------------------------
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - run: |
+          python -m pip install --upgrade pip
+          pip install flake8 pytest
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - run: flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+      - run: pytest
+
+# --------------------------------------------------
+# 2️⃣ DOCKER BUILD (no push yet)
+# --------------------------------------------------
+  docker-build:
+    needs: test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - run: |
+          docker build -t $REGISTRY/$IMAGE_NAME:ci .
+
+# --------------------------------------------------
+# 3️⃣ TRIVY SECURITY SCAN
+# --------------------------------------------------
+  security-scan:
+    needs: docker-build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Scan filesystem (source + deps)
+      - name: Trivy FS Scan
+        uses: aquasecurity/trivy-action@v0.24.0
+        with:
+          scan-type: fs
+          format: table
+          severity: CRITICAL,HIGH
+          exit-code: 1
+
+      # Scan Docker image
+      - name: Build Image for Scan
+        run: docker build -t presenz-scan .
+
+      - name: Trivy Image Scan
+        uses: aquasecurity/trivy-action@v0.24.0
+        with:
+          image-ref: presenz-scan
+          format: table
+          severity: CRITICAL,HIGH
+          exit-code: 1
+
+# --------------------------------------------------
+# 4️⃣ PUSH DOCKER (ONLY ON TAG)
+# --------------------------------------------------
+  docker-release:
+    needs: security-scan
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract version
+        id: vars
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - run: |
+          docker build -t $REGISTRY/$IMAGE_NAME:latest .
+          docker tag $REGISTRY/$IMAGE_NAME:latest $REGISTRY/$IMAGE_NAME:${{ steps.vars.outputs.VERSION }}
+          docker push $REGISTRY/$IMAGE_NAME:latest
+          docker push $REGISTRY/$IMAGE_NAME:${{ steps.vars.outputs.VERSION }}
+
+# --------------------------------------------------
+# 5️⃣ BUILD BINARIES (MULTI-OS)
+# --------------------------------------------------
+  build-binaries:
+    needs: security-scan
+    if: github.ref_type == 'tag'
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - run: pyinstaller --onefile main.py
+
+      - name: Rename binary
+        shell: bash
+        run: |
+          mkdir release
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            mv dist/main.exe release/presenz-windows.exe
+          elif [ "$RUNNER_OS" = "macOS" ]; then
+            mv dist/main release/presenz-macos
+          else
+            mv dist/main release/presenz-linux
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: presenz-${{ matrix.os }}
+          path: release/*
+
+# --------------------------------------------------
+# 6️⃣ CREATE GITHUB RELEASE
+# --------------------------------------------------
+  release:
+    needs: [docker-release, build-binaries]
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**/*
+          generate_release_notes: true
