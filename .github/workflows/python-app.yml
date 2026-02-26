@@ -67,8 +67,9 @@ jobs:
 
       - name: Rename Binary (Windows)
         if: runner.os == 'Windows'
+        shell: cmd
         run: |
-          rename dist\\${{ env.APP_NAME }}.exe ${{ env.APP_NAME }}-windows.exe
+          ren dist\${{ env.APP_NAME }}.exe ${{ env.APP_NAME }}-windows.exe
 
       - name: Upload Binary Artifact
         uses: actions/upload-artifact@v4
