@@ -88,6 +88,7 @@ def main():
     # Initialize KillSwitch
     # -------------------------
     killswitch = KillSwitchService()
+    app.add_middleware(ActivityMiddleware, killswitch=killswitch)
     print("[DEBUG] FastAPI app initialized")
     print("[DEBUG] Presenz is ready to accept attendance submissions")
 
@@ -102,7 +103,7 @@ def main():
         # Launch server and KillSwitch tasks concurrently
         # -------------------------
         server_task = asyncio.create_task(server.serve())
-        # monitor_task = asyncio.create_task(killswitch.inactivity_monitor())
+        monitor_task = asyncio.create_task(killswitch.inactivity_monitor())
         listener_task = asyncio.create_task(killswitch.manual_terminate_listener())
 
         try:
@@ -124,7 +125,7 @@ def main():
             print("[DEBUG] Server shutdown gracefully.")
 
             # Cancel background tasks if still running
-            for task in [listener_task]:
+            for task in [listener_task, monitor_task]:
                 if not task.done():
                     task.cancel()
                     try:
