@@ -88,7 +88,6 @@ def main():
     # Initialize KillSwitch
     # -------------------------
     killswitch = KillSwitchService()
-    # app.add_middleware(ActivityMiddleware, killswitch=killswitch)
     print("[DEBUG] FastAPI app initialized")
     print("[DEBUG] Presenz is ready to accept attendance submissions")
 

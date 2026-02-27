@@ -41,6 +41,9 @@ class Settings:
     @property
     def db_base_path(self) -> str:
         return self._config["database"]["base_path"]
+    @property
+    def default_db(self) -> str:
+        return self.db_base_path + "default.db"
 
     @property
     def db_wal_mode(self) -> bool:

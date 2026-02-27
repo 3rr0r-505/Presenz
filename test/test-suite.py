@@ -11,7 +11,7 @@ import csv
 # -------------------------
 # Configuration
 # -------------------------
-SERVER_URL = "https://localhost:8080/attendance/submit" # Replace with tunnel like if needed
+SERVER_URL = "http://localhost:8080/attendance/submit" # Replace with tunnel like if needed
 SESSION_CODE = "<session code>"  # Replace with your current session code
 TOTAL_STUDENTS = 200
 MAX_WORKERS = 50

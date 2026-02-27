@@ -1,4 +1,4 @@
-fastapi[standard]
+fastapi
 uvicorn[standard]
-pydantic[standard]
-qrcode[standard]
+pydantic
+qrcode

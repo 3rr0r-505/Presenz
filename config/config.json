@@ -24,4 +24,4 @@
         "backup_path": "./backup/",
         "format": "json"
     }
-    }
+}
