@@ -4,6 +4,7 @@ import secrets
 import string
 from datetime import datetime
 from typing import Optional
+from threading import Lock
 
 from server.config import settings
 
@@ -17,6 +18,14 @@ class SessionService:
         self._max_count: int = 0
         self._current_count: int = 0
         self._db_path: Optional[str] = None
+        self._lock = Lock()
+
+    def try_accept_submission(self) -> bool:
+        with self._lock:
+            if self._active and self._current_count < self._max_count:
+                self._current_count += 1
+                return True
+            return False
 
     # ----------------------------
     # Start Session
@@ -75,6 +84,10 @@ class SessionService:
 
     def is_full(self) -> bool:
         return self._current_count >= self._max_count
+
+    def decrement_count(self) -> None:
+        with self._lock:
+            self._current_count -= 1
 
     # ----------------------------
     # Getters

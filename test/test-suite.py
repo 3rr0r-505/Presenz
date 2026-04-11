@@ -12,7 +12,8 @@ import csv
 # Configuration
 # -------------------------
 SERVER_URL = "http://localhost:8080/attendance/submit" # Replace with tunnel like if needed
-SESSION_CODE = "<session code>"  # Replace with your current session code
+# SESSION_CODE = "<session code>"  # Replace with your current session code
+SESSION_CODE = "<session code>"
 TOTAL_STUDENTS = 200
 MAX_WORKERS = 50
 REQUEST_TIMEOUT = 5
@@ -209,6 +210,11 @@ def menu():
         elif choice == "3":
             duplicate_test()
         elif choice == "4":
+            invalid_session_test()
+        elif choice == "all":
+            stress_test()
+            latency_test()
+            duplicate_test()
             invalid_session_test()
         elif choice == "0":
             print("Exiting...")

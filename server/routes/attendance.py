@@ -52,7 +52,7 @@ def submit_attendance(payload: AttendanceRequest):
         # -------------------------
         # Check submission limit
         # -------------------------
-        if not session_service.can_accept_submission():
+        if not session_service.try_accept_submission():
             return {
                 "status": "closed",
                 "message": "Attendance session closed",
@@ -61,12 +61,19 @@ def submit_attendance(payload: AttendanceRequest):
         # -------------------------
         # Insert Attendance
         # -------------------------
-        db_service.insert_attendance(
-            table_name=table_name,
-            name=name,
-            roll=roll,
-        )
-        session_service.increment_count()
+        try:
+            db_service.insert_attendance(
+                table_name=table_name,
+                name=name,
+                roll=roll,
+            )
+        except sqlite3.IntegrityError:
+            session_service.decrement_count()
+            raise HTTPException(
+                status_code=409,
+                detail="Roll number already submitted",
+            )
+
         # If just reached max, print debug once
         if session_service.is_full():
             print("+------------------------------------------------------------+")
@@ -77,13 +84,6 @@ def submit_attendance(payload: AttendanceRequest):
             "status": "success",
             "message": "Attendance recorded successfully",
         }
-
-    # Duplicate roll (UNIQUE constraint)
-    except sqlite3.IntegrityError:
-        raise HTTPException(
-            status_code=409,
-            detail="Roll number already submitted",
-        )
 
     # Validation errors
     except ValidationError as e:
