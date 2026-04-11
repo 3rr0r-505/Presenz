@@ -209,3 +209,4 @@ __marimo__/
 .vscode/
 presenz-venv/
 test.db
+backup/

@@ -86,10 +86,5 @@ class Settings:
     def backup_path(self) -> str:
         return self._config["export"]["backup_path"]
 
-    @property
-    def export_format(self) -> str:
-        return self._config["export"]["format"]
-
-
 # Singleton instance
 settings = Settings()

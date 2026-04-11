@@ -29,6 +29,7 @@ def main():
     parser.add_argument("--batch", required=True, help="Batch ID")
     parser.add_argument("--total", required=True, type=int, help="Total number of students")
     parser.add_argument("--db", required=False, help="SQLite DB file path")
+    parser.add_argument("--export", action="store_true", help="Export attendance data on exit")
     args = parser.parse_args()
 
     db_path = args.db if args.db else settings.default_db
@@ -98,6 +99,10 @@ def main():
             print("[ERROR] Exception in server run:", e)
 
         finally:
+            if args.export:
+                from server.services.export_service import export_service
+                records = db_service.fetch_all(table_name)
+                export_service.export(table_name, records)
             print("[DEBUG] Server Halted gracefully.\n")
 
             for task in [listener_task, monitor_task]:
@@ -135,6 +140,10 @@ def main():
             except (EOFError, OSError):
                 answer = "n"
             if answer == "y":
+                if args.export:
+                    from server.services.export_service import export_service
+                    records = db_service.fetch_all(table_name)
+                    export_service.export(table_name, records)
                 db_service.close()
                 session_service.end_session()
                 print("[Presenz] Shutting down...\n")

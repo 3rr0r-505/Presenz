@@ -22,7 +22,6 @@
     },
 
     "export": {
-        "backup_path": "./backup/",
-        "format": "json"
+        "backup_path": "./backup/"
     }
 }
