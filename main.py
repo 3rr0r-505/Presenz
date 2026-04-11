@@ -46,12 +46,11 @@ def main():
     # Initialize session
     # -------------------------
     try:
-        # new (correct)
         session_service.start_session(
             max_count=args.total,
             course=args.course,
             batch=args.batch,
-            db_filename=db_path.split("/")[-1],  # just the filename
+            db_filename=db_path.split("/")[-1],
         )
         table_name = session_service.get_table_name
         session_code = session_service.get_session_code
@@ -76,55 +75,28 @@ def main():
         sys.exit(1)
 
     # -------------------------
-    # Launch FastAPI app
-    # -------------------------
-    app = FastAPI(title="Presenz Attendance System")
-    @app.get("/")
-    def root():
-        return RedirectResponse(url="/attendance/")
-    app.include_router(router, prefix="/attendance")
-
-    # -------------------------
-    # Initialize KillSwitch
-    # -------------------------
-    killswitch = KillSwitchService()
-    app.add_middleware(ActivityMiddleware, killswitch=killswitch)
-    print("[DEBUG] FastAPI app initialized")
-    print("[DEBUG] Presenz is ready to accept attendance submissions")
-
-    # -------------------------
     # Run server with kill switch
     # -------------------------
-    async def run_server():
+    async def run_server(app, killswitch):
         config = uvicorn.Config(app, host=settings.server_host, port=settings.server_port)
         server = uvicorn.Server(config)
 
-        # -------------------------
-        # Launch server and KillSwitch tasks concurrently
-        # -------------------------
         server_task = asyncio.create_task(server.serve())
         monitor_task = asyncio.create_task(killswitch.inactivity_monitor())
         listener_task = asyncio.create_task(killswitch.manual_terminate_listener())
 
         try:
-            # Wait until KillSwitch triggers shutdown
             await killswitch.wait_for_shutdown()
             print("[DEBUG] KillSwitch triggered shutdown.")
-            server.should_exit = True  # Graceful shutdown
-
-            # Wait for the uvicorn server to exit cleanly
+            server.should_exit = True
             await server_task
 
         except Exception as e:
             print("[ERROR] Exception in server run:", e)
 
         finally:
-            # Cleanup DB and session
-            db_service.close()
-            session_service.end_session()
-            print("[DEBUG] Server shutdown gracefully.")
+            print("[DEBUG] Server Halted gracefully.")
 
-            # Cancel background tasks if still running
             for task in [listener_task, monitor_task]:
                 if not task.done():
                     task.cancel()
@@ -136,12 +108,37 @@ def main():
     # -------------------------
     # Launch server
     # -------------------------
-    try:
-        asyncio.run(run_server())
-    except Exception:
-        print("[ERROR] Failed to start FastAPI server")
-        traceback.print_exc()
-        sys.exit(1)
+    print("[DEBUG] FastAPI app initialized")
+    print("[DEBUG] Presenz is ready to accept attendance submissions")
+
+    while True:
+        try:
+            killswitch = KillSwitchService()
+            app = FastAPI(title="Presenz Attendance System")
+            @app.get("/")
+            def root():
+                return RedirectResponse(url="/attendance/")
+            app.include_router(router, prefix="/attendance")
+            app.add_middleware(ActivityMiddleware, killswitch=killswitch)
+
+            asyncio.run(run_server(app, killswitch))
+            break
+        except KeyboardInterrupt:
+            print("\n[Presenz] Ctrl+C detected. Do you want to quit? [y/N]: ", end="", flush=True)
+            try:
+                answer = input().strip().lower()
+            except (EOFError, OSError):
+                answer = "n"
+            if answer == "y":
+                db_service.close()
+                session_service.end_session()
+                print("[Presenz] Shutting down...")
+                break
+            print("[Presenz] Resuming...")
+        except Exception:
+            print("[ERROR] Failed to start FastAPI server")
+            traceback.print_exc()
+            sys.exit(1)
 
 if __name__ == "__main__":
     main()
