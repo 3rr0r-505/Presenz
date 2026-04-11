@@ -18,7 +18,7 @@ class AttendanceRequest(BaseModel):
     roll: str = Field(
         ...,
         min_length=1,
-        max_length=30,
+        max_length=50,
         description="Student roll number",
     )
 

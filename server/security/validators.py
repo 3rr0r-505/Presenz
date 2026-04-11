@@ -1,7 +1,7 @@
 # server/security/validators.py
 
 import re
-
+from server.config import settings
 
 class ValidationError(Exception):
     """
@@ -41,8 +41,8 @@ def validate_name(name: str) -> str:
     """
     name = sanitize_text(name)
 
-    if not (2 <= len(name) <= 100):
-        raise ValidationError("Name length must be between 2 and 100 characters")
+    if not (2 <= len(name) <= settings.max_name_length):
+        raise ValidationError(f"Name length must be between 2 and {settings.max_name_length} characters")
 
     if not re.fullmatch(r"[A-Za-z.\s]+", name):
         raise ValidationError("Name contains invalid characters")
@@ -63,8 +63,8 @@ def validate_roll(roll: str) -> str:
     """
     roll = sanitize_text(roll)
 
-    if not (1 <= len(roll) <= 30):
-        raise ValidationError("Roll number length must be between 1 and 30 characters")
+    if not (1 <= len(roll) <= settings.max_roll_length):
+        raise ValidationError(f"Roll number length must be between 1 and {settings.max_roll_length} characters")
 
     if not re.fullmatch(r"[A-Za-z0-9\-]+", roll):
         raise ValidationError("Roll number must be alphanumeric only")

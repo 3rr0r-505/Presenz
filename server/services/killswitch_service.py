@@ -47,7 +47,7 @@ class KillSwitchService:
     # ----------------------------
     def update_activity(self) -> None:
         """Update last activity timestamp on each HTTP request."""
-        datetime.now(timezone.utc)
+        self._last_activity = datetime.now(timezone.utc)
 
     async def inactivity_monitor(self) -> None:
         """
