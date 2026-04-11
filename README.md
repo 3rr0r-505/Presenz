@@ -72,7 +72,7 @@ Example:
 
 Expose backend running on localhost:8080:
 ```bash
-cloudflared --tunnel http://localhost:8080
+cloudflared tunnel --url http://localhost:8080
 ```
 This will generate a public URL.
 
