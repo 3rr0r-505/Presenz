@@ -121,7 +121,7 @@ def main():
 
     while True:
         try:
-            killswitch = KillSwitchService()
+            killswitch = KillSwitchService(timeout_minutes=settings.inactivity_timeout)
             app = FastAPI(title="Presenz Attendance System")
             app.state.limiter = limiter
             app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)

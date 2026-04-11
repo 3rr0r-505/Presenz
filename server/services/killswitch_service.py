@@ -5,10 +5,10 @@ from datetime import datetime, timedelta, timezone
 
 
 class KillSwitchService:
-    def __init__(self, timeout_minutes: int = 3) -> None:
+    def __init__(self, timeout_minutes: int) -> None:
         # Shared shutdown event for both inactivity and manual terminate
         self._shutdown_event = asyncio.Event()
-        self._last_activity = datetime.utcnow()
+        self._last_activity = datetime.now(timezone.utc)
         self._timeout = timedelta(minutes=timeout_minutes)
 
     # ----------------------------
@@ -57,7 +57,7 @@ class KillSwitchService:
         print(f"[KillSwitch] Inactivity monitor started (timeout: {self._timeout}).")
         while not self._shutdown_event.is_set():
             await asyncio.sleep(5)
-            if datetime.utcnow() - self._last_activity > self._timeout:
+            if datetime.now(timezone.utc) - self._last_activity > self._timeout:
                 print("[KillSwitch] Inactivity timeout reached. Shutting down.")
                 self.trigger_shutdown()
                 break

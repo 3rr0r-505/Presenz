@@ -21,6 +21,10 @@
         "rate_limit": "3/minute"
     },
 
+    "killswitch": {
+        "inactivity_timeout_minutes": 3
+    },
+
     "export": {
         "backup_path": "./backup/"
     }

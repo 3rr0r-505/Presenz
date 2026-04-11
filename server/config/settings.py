@@ -64,6 +64,10 @@ class Settings:
     def session_code_length(self) -> int:
         return self._config["session"]["session_code_length"]
 
+    @property
+    def inactivity_timeout(self) -> int:
+        return self._config["killswitch"]["inactivity_timeout_minutes"]
+
     # ------------------------
     # Security
     # ------------------------
