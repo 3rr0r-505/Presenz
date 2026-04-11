@@ -17,7 +17,8 @@
 
     "security": {
         "max_name_length": 100,
-        "max_roll_length": 50
+        "max_roll_length": 50,
+        "rate_limit": "3/minute"
     },
 
     "export": {

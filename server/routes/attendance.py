@@ -3,6 +3,9 @@
 import sqlite3
 from fastapi import APIRouter, HTTPException # type: ignore
 from fastapi.responses import FileResponse # type: ignore
+from fastapi import Request
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from pathlib import Path
 
 from server.models.schemas import AttendanceRequest
@@ -14,8 +17,10 @@ from server.security import (
 )
 from server.services.session_service import session_service
 from server.services.db_service import db_service
+from server.config import settings
 
 router = APIRouter()
+limiter = Limiter(key_func=get_remote_address)
 
 # -------------------------
 # Serve entry.html
@@ -34,7 +39,8 @@ def serve_entry():
 # Submit attendance
 # -------------------------
 @router.post("/submit")
-def submit_attendance(payload: AttendanceRequest):
+@limiter.limit(settings.rate_limit)
+def submit_attendance(request: Request, payload: AttendanceRequest):
     try:
         # -------------------------
         # Validate Input

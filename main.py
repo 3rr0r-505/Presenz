@@ -6,9 +6,12 @@ import traceback
 import asyncio
 from fastapi import FastAPI # type: ignore
 from fastapi.responses import RedirectResponse # type: ignore
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 import uvicorn # type: ignore
 
 from server.routes import router
+from server.routes.attendance import limiter
 from server.services.db_service import db_service
 from server.services.session_service import session_service
 from server.services.killswitch_service import KillSwitchService
@@ -16,7 +19,7 @@ from server.middleware import ActivityMiddleware
 from server.config import settings
 
 def main():
-    print("[DEBUG] Starting Presenz backend...")
+    print("[Presenz] Starting Presenz backend...")
 
     # -------------------------
     # Parse CLI arguments
@@ -29,14 +32,14 @@ def main():
     args = parser.parse_args()
 
     db_path = args.db if args.db else settings.default_db
-    print(f"[DEBUG] Using DB: {db_path}")
+    print(f"[Presenz] Using DB: {db_path}")
 
     # -------------------------
     # Initialize DB
     # -------------------------
     try:
         db_service.connect(db_path)
-        print("[DEBUG] DB connection established")
+        print("[Presenz] DB connection established")
     except Exception:
         print("[ERROR] Failed to connect to DB")
         traceback.print_exc()
@@ -55,8 +58,8 @@ def main():
         table_name = session_service.get_table_name
         session_code = session_service.get_session_code
         print("+------------------------------------------------------------------------------------+")
-        print(f" [DEBUG] Session initialized: {table_name}")
-        print(f" [DEBUG] Session code (share with students): {session_code}")
+        print(f" [Presenz] Session initialized: {table_name}")
+        print(f" [Presenz] Session code (share with students): {session_code}")
         print("+------------------------------------------------------------------------------------+")
     except Exception:
         print("[ERROR] Failed to initialize session")
@@ -68,7 +71,7 @@ def main():
     # -------------------------
     try:
         db_service.create_table(table_name)
-        print(f"[DEBUG] Attendance table created: {table_name}")
+        print(f"[Presenz] Attendance table created: {table_name}")
     except Exception:
         print("[ERROR] Failed to create attendance table")
         traceback.print_exc()
@@ -87,7 +90,7 @@ def main():
 
         try:
             await killswitch.wait_for_shutdown()
-            print("[DEBUG] KillSwitch triggered shutdown.")
+            print("[Presenz] KillSwitch triggered shutdown.")
             server.should_exit = True
             await server_task
 
@@ -108,13 +111,15 @@ def main():
     # -------------------------
     # Launch server
     # -------------------------
-    print("[DEBUG] FastAPI app initialized")
-    print("[DEBUG] Presenz is ready to accept attendance submissions")
+    print("[Presenz] FastAPI app initialized")
+    print("[Presenz] Presenz is ready to accept attendance submissions")
 
     while True:
         try:
             killswitch = KillSwitchService()
             app = FastAPI(title="Presenz Attendance System")
+            app.state.limiter = limiter
+            app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
             @app.get("/")
             def root():
                 return RedirectResponse(url="/attendance/")

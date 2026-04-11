@@ -75,6 +75,10 @@ class Settings:
     def max_roll_length(self) -> int:
         return self._config["security"]["max_roll_length"]
 
+    @property
+    def rate_limit(self) -> str:
+        return self._config["security"]["rate_limit"]
+
     # ------------------------
     # Export
     # ------------------------
