@@ -1,7 +1,7 @@
 # server/services/killswitch_service.py
 
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 
 class KillSwitchService:
@@ -47,7 +47,7 @@ class KillSwitchService:
     # ----------------------------
     def update_activity(self) -> None:
         """Update last activity timestamp on each HTTP request."""
-        self._last_activity = datetime.utcnow()
+        datetime.now(timezone.utc)
 
     async def inactivity_monitor(self) -> None:
         """

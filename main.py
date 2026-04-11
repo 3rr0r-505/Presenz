@@ -19,7 +19,7 @@ from server.middleware import ActivityMiddleware
 from server.config import settings
 
 def main():
-    print("[Presenz] Starting Presenz backend...")
+    print("\n[Presenz] Starting Presenz backend...")
 
     # -------------------------
     # Parse CLI arguments
@@ -98,7 +98,7 @@ def main():
             print("[ERROR] Exception in server run:", e)
 
         finally:
-            print("[DEBUG] Server Halted gracefully.")
+            print("[DEBUG] Server Halted gracefully.\n")
 
             for task in [listener_task, monitor_task]:
                 if not task.done():
@@ -137,7 +137,7 @@ def main():
             if answer == "y":
                 db_service.close()
                 session_service.end_session()
-                print("[Presenz] Shutting down...")
+                print("[Presenz] Shutting down...\n")
                 break
             print("[Presenz] Resuming...")
         except Exception:
