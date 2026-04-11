@@ -104,7 +104,7 @@ jobs:
           path: ${{ env.APP_NAME }}-docker.tar
 
 # ======================================
-# 4️⃣ UPDATE LATEST RELEASE (Every Commit)
+# 4️⃣ UPDATE LATEST VERSIONED RELEASE (Every Commit)
 # ======================================
   update-latest:
     if: >
@@ -118,6 +118,10 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Get Latest Tag
+        id: get_tag
+        run: echo "tag=$(git describe --tags --abbrev=0)" >> $GITHUB_OUTPUT
+
       - name: Download All Artifacts
         uses: actions/download-artifact@v4
         with:
@@ -128,12 +132,10 @@ jobs:
           git archive --format=zip -o ${{ env.APP_NAME }}-source.zip HEAD
           git archive --format=tar.gz -o ${{ env.APP_NAME }}-source.tar.gz HEAD
 
-      - name: Update Latest Release
+      - name: Update Latest Versioned Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: latest
-          name: "Latest Build"
-          prerelease: true
+          tag_name: ${{ steps.get_tag.outputs.tag }}
           files: |
             release-artifacts/**/*
             ${{ env.APP_NAME }}-source.zip
