@@ -71,7 +71,7 @@ jobs:
           ren dist\${{ env.APP_NAME }}.exe ${{ env.APP_NAME }}-windows.exe
 
       - name: Upload Binary Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: binary-${{ runner.os }}
           path: dist/*
@@ -93,7 +93,7 @@ jobs:
           docker save ${{ env.APP_NAME }}:${{ github.ref_name }} -o ${{ env.APP_NAME }}-docker.tar
 
       - name: Upload Docker Image Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: docker-image
           path: ${{ env.APP_NAME }}-docker.tar
