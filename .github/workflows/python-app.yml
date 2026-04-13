@@ -133,7 +133,7 @@ jobs:
           git archive --format=tar.gz -o ${{ env.APP_NAME }}-source.tar.gz HEAD
 
       - name: Update Latest Versioned Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.get_tag.outputs.tag }}
           make_latest: false
@@ -168,7 +168,7 @@ jobs:
           git archive --format=tar.gz -o ${{ env.APP_NAME }}-source.tar.gz HEAD
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           make_latest: true
           files: |
