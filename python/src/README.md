@@ -1,9 +1,10 @@
 <div align="center">
 
-# Presenz - Go Powered Attendance System
+# Presenz - FastAPI Powered Attendance System
 
-![Go](https://img.shields.io/badge/Go-1.26+-00ADD8?logo=go&logoColor=00ADD8)
-![net/http](https://img.shields.io/badge/net%2Fhttp-stdlib-00ADD8?logo=go&logoColor=00ADD8)
+![Python](https://img.shields.io/badge/Python-3.10+-417fb1?logo=python&logoColor=417fb1)
+![FastAPI](https://img.shields.io/badge/FastAPI-Framework-019486?logo=fastapi&logoColor=019486)
+![Uvicorn](https://img.shields.io/badge/Uvicorn-ASGI_Server-1ebdc8?logo=gunicorn&logoColor=1ebdc8)
 ![SQLite](https://img.shields.io/badge/Database-SQLite-3f9fdb?logo=sqlite&logoColor=3f9fdb)
 ![Docker](https://img.shields.io/badge/Docker-Supported-0091e2?logo=docker&logoColor=0091e2)
 ![Cloudflare Tunnel](https://img.shields.io/badge/Tunnel-Cloudflare-fbad41?logo=cloudflare&logoColor=fbad41)
@@ -17,26 +18,20 @@ A lightweight, terminal-driven attendance system with secure public session acce
 
 ---
 
-## 🔄 Why Go
-
-Presenz started as a FastAPI service and was rewritten in Go to ship as a single static binary — no interpreter, no venv, no runtime dependencies to install on the machine running it. The rewrite also made concurrency explicit (goroutines + mutexes instead of asyncio hiding it) and cut the Docker image down to a `scratch`-based build with zero OS package surface. Behavior and API contract are preserved 1:1 with the original; see `python/` for the reference implementation this was ported from.
-
----
-
 ## 🔐 Key Features
 
-- Zero runtime dependencies — single static binary
+- Minimal dependencies
 - SQLite-based session storage with WAL mode
 - Terminal-first workflow
 - QR-driven attendance capture
-- Docker-compatible deployment (scratch-based, minimal image)
+- Docker-compatible deployment
 - Ctrl+C protection — prompts confirmation before exit
 - Per-IP rate limiting to prevent spam
 - Built-in duplicate submission protection
 - Atomic submission count — race-condition safe under concurrent load
 - Export attendance as CSV and JSON on exit via `--export`
 - Handles 200 concurrent requests with 99.5% success rate
-- Sub-second average latency under load (~0.01–0.03s)
+- Maintains low average latency (~0.26–0.34s under load)
 - Built-in duplicate submission protection (149/150 blocked in testing)
 
 ---
@@ -45,19 +40,21 @@ Presenz started as a FastAPI service and was rewritten in Go to ship as a single
 
 | Layer | Technology |
 |---|---|
-| Language | Go 1.26+ |
-| HTTP Server | net/http (stdlib) |
-| Database | SQLite via modernc.org/sqlite (pure Go, no cgo) |
-| Input Validation | Hand-written validators (internal/security) |
-| Rate Limiting | golang.org/x/time/rate (per-IP token bucket) |
+| Language | Python 3.10+ |
+| Web Framework | FastAPI |
+| ASGI Server | Uvicorn |
+| Database | SQLite (WAL mode) |
+| Input Validation | Pydantic |
+| Rate Limiting | SlowAPI |
 | Tunneling | Cloudflare Tunnel |
 | QR Generation | qrencode (CLI) |
-| Containerization | Docker (multi-stage, scratch final image) |
+| Containerization | Docker |
 
 ## 📦 Requirements
 
-- Go 1.26+ (build only — the compiled binary has no runtime dependency)
-- sqlite3 (optional, for manual DB inspection)
+- python3
+- python3-venv
+- sqlite3
 - cloudflared
 - qrencode
 - Docker (optional)
@@ -66,27 +63,29 @@ Presenz started as a FastAPI service and was rewritten in Go to ship as a single
 
 ## 🚀 Native Setup
 
-### 1️⃣ Build the Binary
+### 1️⃣ Create Virtual Environment
 ```bash
-go build -o presenz ./cmd/presenz
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
 ```
 
 ### 2️⃣ Start Presenz
 ```bash
-./presenz --course <course-name> --batch <batch-name> --total <number-of-students> --db <path-to-db-file>
+python3 main.py --course <course-name> --batch <batch-name> --total <number-of-students> --db <path-to-db-file>
 ```
 
 Example:
 
 ```bash
-./presenz --course cs50 --batch fall-101 --total 120 --db db/ug-cs.db
+python3 main.py --course cs50 --batch fall-101 --total 120 --db db/ug-cs.db
 ```
 
 ### 3️⃣ Export Attendance on Exit (Optional)
 Add `--export` to automatically save attendance as CSV and JSON to `backup/` when the server exits. Example:
 
 ```bash
-./presenz --course cs50 --batch fall-101 --total 120 --db db/ug-cs.db --export
+python3 main.py --course cs50 --batch fall-101 --total 120 --db db/ug-cs.db --export
 ```
 
 ## 🐳 Docker Setup
@@ -98,13 +97,13 @@ docker build -t presenz-image:latest .
 
 ### Run Container
 ```bash
-docker run -it --rm -p 8080:8080 -v $(pwd)/db:/app/db -v $(pwd)/backup:/app/backup presenz-image:latest --course <course-name> --batch <batch-name> --total <number-of-students> --db <path-to-db-file>
+docker run -it --rm -p 8080:8080 -v $(pwd)/db:/app/db presenz-image:latest --course <course-name> --batch <batch-name> --total <number-of-students> --db <path-to-db-file>
 ```
 
 Example:
 
 ```bash
-docker run -it --rm -p 8080:8080 -v $(pwd)/db:/app/db -v $(pwd)/backup:/app/backup presenz-image:latest --course cs50 --batch fall-101 --total 120 --db db/ug-cs.db
+docker run -it --rm -p 8080:8080 -v $(pwd)/db:/app/db presenz-image:latest --course cs50 --batch fall-101 --total 120 --db db/ug-cs.db
 ```
 
 ---
@@ -140,7 +139,7 @@ All settings are managed via `config/config.json`:
 | `database.wal_mode` | Enable SQLite WAL mode | `true` |
 | `database.timeout_seconds` | SQLite connection timeout | `5` |
 | `session.session_code_length` | Length of session code | `8` |
-| `security.rate_limit` | Per-IP rate limit | `3/minute` |
+| `security.rate_limit` | Per-IP rate limit | `5/minute` |
 | `killswitch.inactivity_timeout_minutes` | Auto-shutdown after inactivity | `3` |
 | `export.backup_path` | Export output directory | `./backup/` |
 
@@ -150,7 +149,6 @@ All settings are managed via `config/config.json`:
 |---|---|
 | Graceful exit | Type `terminate` in terminal |
 | Confirmed exit | Press `Ctrl+C` → type `y` |
-| Resume | Press `Ctrl+C` → anything other than `y` |
 | Auto-shutdown | No activity for `inactivity_timeout_minutes` |
 
 ---

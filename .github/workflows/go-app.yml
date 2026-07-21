@@ -22,6 +22,7 @@ permissions:
 
 env:
   APP_NAME: presenz
+  GO_VERSION: "1.26.5"
 
 # ======================================
 # 1️⃣ SECURITY SCAN (Every Commit)
@@ -41,45 +42,56 @@ jobs:
           severity: HIGH,CRITICAL
           exit-code: 1
 
+      - name: Run govulncheck
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...
+
 # ======================================
 # 2️⃣ BUILD EXECUTABLES
 # ======================================
   build-binaries:
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - goos: linux
+            goarch: amd64
+            suffix: linux-amd64
+          - goos: linux
+            goarch: arm64
+            suffix: linux-arm64
+          - goos: windows
+            goarch: amd64
+            suffix: windows-amd64.exe
+          - goos: darwin
+            goarch: amd64
+            suffix: macos-amd64
+          - goos: darwin
+            goarch: arm64
+            suffix: macos-arm64
 
     steps:
       - uses: actions/checkout@v7
 
-      - name: Setup Python
-        uses: actions/setup-python@v6
+      - name: Setup Go
+        uses: actions/setup-go@v5
         with:
-          python-version: "3.10"
-
-      - name: Install Dependencies
-        run: |
-          pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pyinstaller
+          go-version: ${{ env.GO_VERSION }}
 
       - name: Build Executable
-        run: pyinstaller --onefile main.py --name ${{ env.APP_NAME }}
-
-      - name: Rename Binary (Linux/macOS)
-        if: runner.os != 'Windows'
-        run: mv dist/${{ env.APP_NAME }} dist/${{ env.APP_NAME }}-${{ runner.os }}
-
-      - name: Rename Binary (Windows)
-        if: runner.os == 'Windows'
-        shell: cmd
-        run: ren dist\${{ env.APP_NAME }}.exe ${{ env.APP_NAME }}-windows.exe
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 0
+        run: |
+          mkdir -p dist
+          go build -ldflags="-s -w" -o dist/${{ env.APP_NAME }}-${{ matrix.suffix }} ./cmd/presenz
 
       - name: Upload Binary Artifact
         uses: actions/upload-artifact@v7
         with:
-          name: binary-${{ runner.os }}
+          name: binary-${{ matrix.suffix }}
           path: dist/*
 
 # ======================================

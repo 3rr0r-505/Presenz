@@ -1,6 +1,7 @@
 # Binaries
 presenz-go
 presenz
+performance
 *.exe
 *.exe~
 *.dll
@@ -32,7 +33,7 @@ db/*.db-journal
 # Exported attendance data
 export/
 *.csv
-*.export.json
+backup/
 
 # Local config overrides (keep config/config.json template tracked,
 # ignore any local override you use for testing)
