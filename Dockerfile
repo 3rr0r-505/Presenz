@@ -8,7 +8,7 @@
 # -------------------------
 # Build Stage
 # -------------------------
-FROM golang:1.26.6-alpine3.24 AS builder
+FROM golang:1.27.0-alpine3.24 AS builder
 
 # Patch whatever Alpine snapshot this Go image ships with,
 # at build time — keeps the builder stage reasonably current
